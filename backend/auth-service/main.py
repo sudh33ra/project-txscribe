@@ -7,6 +7,12 @@ from passlib.context import CryptContext
 from typing import Optional, Dict
 from shared.database import Database
 from app.models.user import UserModel, UserService
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Auth Service")
 
@@ -20,13 +26,13 @@ app.add_middleware(
 )
 
 # JWT Configuration
-SECRET_KEY = "your-secret-key"  # In production, use environment variable
+SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-123")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -47,67 +53,91 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 @app.post("/auth/register")
-async def register(
-    email: str = Body(...),
-    password: str = Body(...),
-    name: str = Body(...),
-) -> Dict:
-    """
-    Register a new user
-    """
+async def register_user(user: UserModel):
     try:
+        logger.info(f"Attempting to register user: {user.email}")
         db = await Database.get_db()
         user_service = UserService(db)
         
         # Check if user already exists
-        existing_user = await user_service.get_user_by_email(email)
+        existing_user = await user_service.get_user_by_email(user.email)
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        
-        # Hash the password
-        password_hash = pwd_context.hash(password)
-        
-        # Create new user with timestamps
+            logger.info(f"User already exists: {user.email}")
+            raise HTTPException(
+                status_code=400,
+                detail="User already registered"
+            )
+            
         current_time = datetime.utcnow()
-        user = UserModel(
-            email=email,
-            password_hash=password_hash,
-            name=name,
-            created_at=current_time,
-            updated_at=current_time
-        )
+        # Create user document with required fields
+        user_dict = {
+            "email": user.email,
+            "password_hash": pwd_context.hash(user.password),
+            "name": user.name,
+            "created_at": current_time,  # Required by schema
+            "updated_at": current_time
+        }
         
-        user_id = await user_service.create_user(user)
-        return {"user_id": str(user_id), "message": "User registered successfully"}
+        # Create the user
+        user_id = await user_service.create_user_dict(user_dict)
+        logger.info(f"Successfully registered user: {user.email}")
         
-    except HTTPException:
+        return {"user_id": str(user_id)}
+        
+    except HTTPException as e:
+        logger.error(f"Registration failed: {str(e)}")
         raise
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/auth/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@app.post("/auth/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     try:
+        logger.info(f"Attempting login for user: {form_data.username}")
         db = await Database.get_db()
         user_service = UserService(db)
         
         user = await user_service.get_user_by_email(form_data.username)
+        logger.info(f"Found user document: {user}")
+        
         if not user:
-            raise HTTPException(status_code=400, detail="Incorrect email or password")
+            logger.error(f"User not found: {form_data.username}")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect username or password"
+            )
             
-        if not pwd_context.verify(form_data.password, user["password_hash"]):
-            raise HTTPException(status_code=400, detail="Incorrect email or password")
+        stored_password = user.get("password_hash")
+        if not stored_password:
+            logger.error("No password hash found in user document")
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid user data"
+            )
             
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        if not pwd_context.verify(form_data.password, stored_password):
+            logger.error("Invalid password")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect username or password"
+            )
+            
         access_token = create_access_token(
-            data={"sub": user["email"]},
-            expires_delta=access_token_expires
+            data={"sub": str(user["_id"])},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         
-        return {"access_token": access_token, "token_type": "bearer"}
+        logger.info(f"Login successful for user: {form_data.username}")
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/auth/me")

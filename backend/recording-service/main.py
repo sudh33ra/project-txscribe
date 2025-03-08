@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
+from jose import JWTError, jwt
 import aiofiles
 import uuid
 from datetime import datetime
@@ -23,6 +24,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+JWT_SECRET = os.getenv("JWT_SECRET", "your_secret_key")  # Should match auth service
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -190,4 +193,55 @@ async def health_check():
         raise HTTPException(
             status_code=503,
             detail=f"Service unhealthy: {str(e)}"
-        ) 
+        )
+
+@app.get("/workspaces")
+async def get_user_workspaces(authorization: str = Header(None)) -> Dict:
+    """
+    Get all workspaces that the current user has access to
+    """
+    try:
+        if not authorization:
+            logger.error("No authorization header provided")
+            raise HTTPException(status_code=401, detail="No authorization header")
+            
+        if not authorization.startswith("Bearer "):
+            logger.error("Invalid authorization format")
+            raise HTTPException(status_code=401, detail="Invalid authorization format")
+            
+        token = authorization.split("Bearer ")[1]
+        try:
+            logger.info("Attempting to decode token")
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            user_id = payload.get("sub")
+            if not user_id:
+                logger.error("No user ID in token")
+                raise HTTPException(status_code=401, detail="Invalid token: no user ID")
+            logger.info(f"Successfully decoded token for user {user_id}")
+        except JWTError as e:
+            logger.error(f"JWT decode error: {str(e)}")
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+        db = await Database.get_db()
+        workspace_service = WorkspaceService(db)
+        project_service = ProjectService(db)
+        
+        # Get all projects owned by the user
+        user_projects = await project_service.get_user_projects(user_id)
+        
+        # Get workspaces for each project
+        workspaces = []
+        for project in user_projects:
+            project_workspaces = await workspace_service.get_project_workspaces(str(project["_id"]))
+            for workspace in project_workspaces:
+                workspace["project"] = {
+                    "id": str(project["_id"]),
+                    "name": project["name"]
+                }
+                workspaces.append(workspace)
+        
+        return {"workspaces": workspaces}
+        
+    except Exception as e:
+        logger.error(f"Error getting user workspaces: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 

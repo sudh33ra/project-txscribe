@@ -19,6 +19,7 @@ services:
       - ./shared:/app/shared
     environment:
       - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+      - JWT_SECRET=your_secret_key
     depends_on:
       mongodb:
         condition: service_healthy

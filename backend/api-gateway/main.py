@@ -155,6 +155,31 @@ async def get_meeting_summary(meeting_id: str) -> Dict:
         )
         return response.json()
 
+@app.get("/api/v1/workspaces")
+async def get_user_workspaces(
+    authorization: str = Header(None)
+) -> Dict:
+    """
+    Get all workspaces that the current user has access to
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{RECORDING_SERVICE}/workspaces",
+                headers={"Authorization": authorization}
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Recording service error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=e.response.text
+        )
+    except Exception as e:
+        logger.error(f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health_check():
     """

@@ -27,21 +27,32 @@ class MongoBaseModel(BaseModel):
             ObjectId: str
         }
 
-class UserModel(MongoBaseModel):
+class UserModel(BaseModel):
     email: EmailStr
-    password_hash: str
+    password: str
     name: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
 
+class UserInDB(UserModel):
+    password_hash: str
+    _id: Optional[ObjectId] = None
+
 class UserService:
     def __init__(self, db):
         self.db = db
-        self.collection = db.users
+        self.collection = db["users"]
 
     async def create_user(self, user: UserModel):
-        result = await self.collection.insert_one(user.dict())
-        return str(result.inserted_id)
+        user_dict = user.dict()
+        result = await self.collection.insert_one(user_dict)
+        return result.inserted_id
+
+    async def create_user_dict(self, user_dict: dict):
+        if "password" in user_dict and "password_hash" not in user_dict:
+            user_dict["password_hash"] = user_dict.pop("password")
+        result = await self.collection.insert_one(user_dict)
+        return result.inserted_id
 
     async def get_user_by_email(self, email: str):
         return await self.collection.find_one({"email": email})

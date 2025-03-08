@@ -17,19 +17,26 @@ RUN pip install "numpy<2.0.0" --no-cache-dir
 COPY requirements.txt .
 RUN pip install --no-cache-dir --timeout 1000 -r requirements.txt
 
-# Pre-download the model during build with increased timeout and retries
-RUN python -c 'from transformers import pipeline; \
-    import os; \
-    os.environ["TRANSFORMERS_CACHE"] = "/app/model_cache"; \
-    os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "500"; \
-    os.environ["HF_ENDPOINT"] = "https://huggingface.co"; \
-    try: \
-        # Use a smaller model by default \
-        summarizer = pipeline("summarization", \
-            model="sshleifer/distilbart-cnn-12-6", \
-            tokenizer="sshleifer/distilbart-cnn-12-6"); \
-    except Exception as e: \
-        print(f"Failed to download model: {e}");'
+# Pre-download the model during build
+COPY <<EOF /app/download_model.py
+from transformers import pipeline
+import os
+
+os.environ["TRANSFORMERS_CACHE"] = "/app/model_cache"
+os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "500"
+os.environ["HF_ENDPOINT"] = "https://huggingface.co"
+
+try:
+    summarizer = pipeline(
+        "summarization",
+        model="sshleifer/distilbart-cnn-12-6",
+        tokenizer="sshleifer/distilbart-cnn-12-6"
+    )
+except Exception as e:
+    print(f"Failed to download model: {e}")
+EOF
+
+RUN python /app/download_model.py
 
 # Copy application code
 COPY ./app ./app

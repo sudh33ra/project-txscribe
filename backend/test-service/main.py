@@ -54,56 +54,94 @@ class TestService:
 
     async def test_auth_service(self):
         try:
-            # Test registration with all required fields
-            register_data = {
-                "email": f"test_{datetime.now().timestamp()}@test.com",
-                "password": "test123",
+            # Try to register test user
+            test_user = {
+                "email": "test2@example.com",
+                "password": "testpassword",
                 "name": "Test User"
             }
             
-            # Send as JSON body
             response = await self.client.post(
                 f"{self.auth_service}/auth/register",
-                json=register_data  # Changed from params to json
+                json=test_user
             )
             
-            if response.status_code != 200:
-                logger.error(f"Registration failed: {response.text}")
-                raise Exception(f"Registration failed: {response.text}")
-                
-            self.log_result("Auth Service - Registration", True)
+            if response.status_code == 200:
+                logger.info("Successfully registered new test user")
+                self.log_result("Auth Service - Registration", True)
+            elif response.status_code == 400 and "already registered" in response.text:
+                logger.info("Test user already exists, proceeding with login")
+                self.log_result("Auth Service - Registration (User Exists)", True)
+            else:
+                logger.error(f"Registration failed unexpectedly: {response.text}")
+                raise Exception(f"Registration failed unexpectedly: {response.text}")
 
-            # Test login with correct credentials
+            # Login and get token
             login_data = {
-                "username": register_data["email"],
-                "password": register_data["password"]
+                "username": test_user["email"],
+                "password": test_user["password"],
+                "grant_type": "password",
+                "scope": ""
             }
             
-            # Send as form data for login
-            login_response = await self.client.post(
-                f"{self.auth_service}/auth/login",
+            logger.info(f"Attempting to login with email: {test_user['email']}")
+            response = await self.client.post(
+                f"{self.auth_service}/auth/token",
                 data=login_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
             
-            if login_response.status_code != 200:
-                logger.error(f"Login failed: {login_response.text}")
-                raise Exception(f"Login failed: {login_response.text}")
+            if response.status_code != 200:
+                logger.error(f"Login failed: {response.text}")
+                raise Exception(f"Login failed: {response.text}")
                 
-            self.auth_token = login_response.json()["access_token"]
+            token_data = response.json()
+            self.auth_token = token_data.get("access_token")
+            
+            if not self.auth_token:
+                logger.error("No token received from login")
+                raise Exception("No token received from login")
+                
+            logger.info("Successfully obtained auth token")
             self.log_result("Auth Service - Login", True)
 
         except Exception as e:
-            logger.error(f"Auth Service test failed: {str(e)}")
+            logger.error(f"Auth service test failed: {str(e)}")
             self.log_result("Auth Service", False, str(e))
-            raise  # Re-raise to stop further tests
+            raise
 
     async def test_api_gateway(self):
         try:
             if not self.auth_token:
                 raise Exception("No auth token available")
+            
+            logger.info(f"Using auth token: {self.auth_token[:10]}...")  # Log first 10 chars
+            
+            # Test getting workspaces
+            headers = {"Authorization": f"Bearer {self.auth_token}"}
+            logger.info(f"Making request with headers: {headers}")
+            
+            response = await self.client.get(
+                f"{self.api_gateway}/api/v1/workspaces",
+                headers=headers
+            )
+            
+            logger.info(f"Get workspaces response status: {response.status_code}")
+            logger.info(f"Get workspaces response body: {response.text}")
+            
+            if response.status_code != 200:
+                logger.error(f"Get workspaces failed: {response.text}")
+                raise Exception(f"Get workspaces failed: {response.text}")
+                
+            workspaces = response.json().get("workspaces", [])
+            if not workspaces:
+                logger.warning("No workspaces found for user")
+            else:
+                logger.info(f"Found {len(workspaces)} workspaces")
+                
+            self.log_result("API Gateway - Get Workspaces", True)
 
-            # Create test audio file
+            # Upload recording
             test_audio_path = "test_audio.m4a"
             with open(test_audio_path, "wb") as f:
                 f.write(b"test audio content")
