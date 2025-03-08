@@ -1,0 +1,116 @@
+services:
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - recording-service
+      - transcription-service
+      - summarization-service
+      - auth-service
+      - mongo-init
+
+  recording-service:
+    build: ./recording-service
+    ports:
+      - "8001:8000"
+    volumes:
+      - recording_data:/app/storage
+      - ./shared:/app/shared
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+
+  transcription-service:
+    build: ./transcription-service
+    ports:
+      - "8002:8000"
+    volumes:
+      - recording_data:/app/storage
+      - ./shared:/app/shared
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+
+  summarization-service:
+    build: ./summarization-service
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./shared:/app/shared
+      - model_cache:/app/model_cache
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+      - HF_ENDPOINT=https://huggingface.co
+      - HF_HUB_DOWNLOAD_TIMEOUT=500
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./shared:/app/shared
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+      - JWT_SECRET=your_secret_key
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin_password
+      - MONGO_INITDB_DATABASE=meeting_minutes
+    command: ["mongod", "--auth"]
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')" --username admin --password admin_password --authenticationDatabase admin
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-init:
+    build: ./mongo-init
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin_password
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  test-service:
+    build: ./test-service
+    depends_on:
+      - api-gateway
+      - auth-service
+      - recording-service
+      - transcription-service
+      - summarization-service
+    environment:
+      - WAIT_HOSTS=api-gateway:8000,auth-service:8000,recording-service:8000,transcription-service:8000,summarization-service:8000
+      - WAIT_TIMEOUT=300
+
+volumes:
+  recording_data:
+  mongodb_data:
+  model_cache: 

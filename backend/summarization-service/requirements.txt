@@ -1,0 +1,11 @@
+fastapi==0.68.0
+uvicorn==0.15.0
+numpy==1.24.3
+motor==3.3.1
+pymongo==4.5.0
+pydantic==1.10.13
+transformers==4.30.2
+--find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.0.1
+sentencepiece==0.1.99
+protobuf==3.20.3 
