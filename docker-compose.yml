@@ -1,0 +1,14 @@
+services:
+  auth-service:
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+      - JWT_SECRET=your-secret-key-123  # Set consistent secret
+
+  recording-service:
+    environment:
+      - MONGODB_URI=mongodb://admin:admin_password@mongodb:27017/meeting_minutes?authSource=admin
+      - JWT_SECRET=your-secret-key-123  # Same secret as auth service
+
+  api-gateway:
+    environment:
+      - JWT_SECRET=your-secret-key-123  # Same secret as auth service 
