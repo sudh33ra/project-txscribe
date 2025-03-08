@@ -1,0 +1,15 @@
+meta {
+  name: upload-recording
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://recording-service:8000/upload
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

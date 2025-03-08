@@ -1,0 +1,20 @@
+meta {
+  name: create-new-project
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://recording-service:8000/projects
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {auth_token}
+}
+
+body:json {
+  { "name": "Test Project", "description": "Test Project Description", "owner_id": "507f1f77bcf86cd799439011" }
+}

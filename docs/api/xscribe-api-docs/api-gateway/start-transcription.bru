@@ -1,0 +1,15 @@
+meta {
+  name: start-transcription
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://api-gateway:8000/api/v1/meetings/transcribe/%7Brecording_id%7D
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

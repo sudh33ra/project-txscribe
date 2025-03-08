@@ -1,0 +1,15 @@
+meta {
+  name: get-summary
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://api-gateway:8000/api/v1/meetings/%7Brecording_id%7D/summary
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

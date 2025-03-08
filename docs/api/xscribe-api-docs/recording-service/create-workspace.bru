@@ -1,0 +1,20 @@
+meta {
+  name: create-workspace
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://recording-service:8000/projects/%7Bproject_id%7D/workspaces
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {auth_token}
+}
+
+body:json {
+  { "name": "Test Workspace", "description": "Test Workspace Description" }
+}

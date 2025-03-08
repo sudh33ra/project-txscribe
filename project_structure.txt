@@ -1,0 +1,51 @@
+meeting-minutes-app/
+├── mobile/                  # React Native mobile app
+│   ├── src/
+│   │   ├── components/
+│   │   ├── screens/
+│   │   ├── services/
+│   │   └── utils/
+│   ├── App.js
+│   └── package.json
+│
+└── backend/
+    ├── api-gateway/        # API Gateway Service
+    │   ├── app/
+    │   │   ├── routes/
+    │   │   └── utils/
+    │   ├── main.py
+    │   └── requirements.txt
+    │
+    ├── auth-service/       # Authentication & User Management
+    │   ├── app/
+    │   │   ├── models/
+    │   │   ├── routes/
+    │   │   └── utils/
+    │   ├── main.py
+    │   └── requirements.txt
+    │
+    ├── recording-service/  # Audio Recording Management
+    │   ├── app/
+    │   │   ├── storage/
+    │   │   ├── routes/
+    │   │   └── utils/
+    │   ├── main.py
+    │   └── requirements.txt
+    │
+    ├── transcription-service/  # Speech-to-Text Service
+    │   ├── app/
+    │   │   ├── models/
+    │   │   ├── whisper/
+    │   │   └── utils/
+    │   ├── main.py
+    │   └── requirements.txt
+    │
+    ├── summarization-service/  # Meeting Minutes Generation
+    │   ├── app/
+    │   │   ├── models/
+    │   │   ├── templates/
+    │   │   └── utils/
+    │   ├── main.py
+    │   └── requirements.txt
+    │
+    └── docker-compose.yml 

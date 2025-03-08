@@ -1,0 +1,15 @@
+meta {
+  name: upload-recording
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://api-gateway:8000/api/v1/meetings/record
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

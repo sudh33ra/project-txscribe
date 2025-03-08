@@ -1,0 +1,15 @@
+meta {
+  name: get-meeting-summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://summarization-service:8000/summary/%7Brecording_id%7D
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: get-transcription
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://transcription-service:8000/status/%7Brecording_id%7D
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}

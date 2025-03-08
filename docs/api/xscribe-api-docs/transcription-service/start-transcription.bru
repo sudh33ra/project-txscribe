@@ -1,0 +1,15 @@
+meta {
+  name: start-transcription
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://transcription-service:8000/transcribe/%7Brecording_id%7D
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {auth_token}
+}
